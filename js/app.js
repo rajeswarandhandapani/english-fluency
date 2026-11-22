@@ -2,8 +2,9 @@
 // Pure totals/date/diff logic lives in logic.js; transcript habit checks live in analyzer.js.
 
 import * as store from './store.js';
-import { h, select, toast, confirmIt, download, copyText, longDate, shortDate, dayLetter, dayName } from './ui.js';
-import { startTimer, stopTimer } from './timer.js';
+import { h, select, toast, confirmIt, download, copyText, longDate, shortDate, dayLetter, dayName } from '../lib/ui.js';
+import { requestPersist } from '../lib/idb.js';
+import { createTimer } from '../lib/timer.js';
 import { weeklyBars, fluencyChart } from './charts.js';
 import {
   canSpeak, listEnUsVoices, speak, stopSpeaking, playDialogue,
@@ -24,6 +25,7 @@ import {
 import { analyzeTranscript, buildAiCoachPrompt } from './analyzer.js';
 
 const main = document.querySelector('#main');
+const timer = createTimer({ chimeHz: 784 });
 
 const defaultSettings = () => ({
   startDate: null,
@@ -60,14 +62,10 @@ const getDay = date => (S.days[date] ||= { date });
 const stamp = seconds => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 let saveTimer;
-let askedToPersist = false;
 
 async function saveDay(day) {
   clearTimeout(saveTimer);
-  if (!askedToPersist) {
-    askedToPersist = true;
-    navigator.storage?.persist?.().catch(() => { });
-  }
+  requestPersist();
   try {
     if (isEmptyDay(day)) await store.deleteDay(day.date);
     else await store.putDay(day);
@@ -723,7 +721,7 @@ function reviewView(date, day, planInfo) {
       h('button', {
         class: 'soft-btn',
         type: 'button',
-        onclick: () => startTimer(180, {
+        onclick: () => timer.start(180, {
           beep: S.settings.beep,
           label: 'Week in Stories',
           onFinish: elapsed => {
@@ -890,7 +888,7 @@ function buildSpeakAndRecordSection({ date, day, framework, title, prompt, bulle
       class: 'soft-btn',
       type: 'button',
       'data-testid': 'start-speaking-timer',
-      onclick: () => startTimer(challengeSec, {
+      onclick: () => timer.start(challengeSec, {
         beep: S.settings.beep,
         label: title,
         onFinish: elapsed => {

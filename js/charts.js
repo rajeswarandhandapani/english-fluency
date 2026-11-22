@@ -1,44 +1,8 @@
 // Responsive SVG charts for Progress view.
 
-import { h, svgEl, dayName, shortDate } from './ui.js';
+import { h, svgEl, dayName, shortDate } from '../lib/ui.js';
+import { svgLabel, barPath, plot, tooltip, pointerIn } from '../lib/chart-kit.js';
 import { daysBetween } from './logic.js';
-
-const label = (attrs, value) => { const t = svgEl('text', attrs); t.textContent = value; return t; };
-
-function barPath(x, from, to, w, radius = 4) {
-  const r = Math.min(radius, w / 2, Math.abs(from - to));
-  return `M${x},${from}V${to + r}Q${x},${to} ${x + r},${to}H${x + w - r}Q${x + w},${to} ${x + w},${to + r}V${from}Z`;
-}
-
-function plot(height, draw) {
-  const box = h('div', { class: 'chart-plot' });
-  box.style.minHeight = `${height}px`;
-  let last = 0;
-  new ResizeObserver(([entry]) => {
-    const width = Math.round(entry.contentRect.width);
-    if (width && width !== last) { last = width; box.replaceChildren(); draw(box, width); }
-  }).observe(box);
-  return box;
-}
-
-function tooltip(box) {
-  const tip = h('div', { class: 'chart-tip', hidden: true });
-  box.append(tip);
-  return {
-    show(x, y, lines) {
-      tip.replaceChildren(...lines);
-      tip.hidden = false;
-      tip.style.left = `${Math.max(2, Math.min(x + 12, box.clientWidth - tip.offsetWidth - 2))}px`;
-      tip.style.top = `${Math.max(0, y - tip.offsetHeight - 8)}px`;
-    },
-    hide() { tip.hidden = true; },
-  };
-}
-
-const pointerIn = (svg, e) => {
-  const r = svg.getBoundingClientRect();
-  return { x: e.clientX - r.left, y: e.clientY - r.top };
-};
 
 /** Weekly practice minutes against the weekly goal line. */
 export function weeklyBars({ rows, goal, currentWeek }) {
@@ -54,17 +18,17 @@ export function weeklyBars({ rows, goal, currentWeek }) {
     const svg = svgEl('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Practice minutes per week' });
     for (let v = 0; v <= ceil; v += step) {
       svg.append(svgEl('line', { x1: left, x2: W, y1: y(v), y2: y(v), class: 'grid' }));
-      svg.append(label({ x: left - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'axis' }, v));
+      svg.append(svgLabel({ x: left - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'axis' }, v));
     }
     box.append(svg);
     const tip = tooltip(box);
     rows.forEach((row, i) => {
       const cx = left + band * i + band / 2;
       if (row.minutes > 0) svg.append(svgEl('path', { d: barPath(cx - barW / 2, baseline, y(row.minutes), barW), class: 'bar-min' }));
-      svg.append(label({ x: cx, y: H - 7, 'text-anchor': 'middle', class: `axis${row.week === currentWeek ? ' strong-tick' : ''}` }, row.week));
+      svg.append(svgLabel({ x: cx, y: H - 7, 'text-anchor': 'middle', class: `axis${row.week === currentWeek ? ' strong-tick' : ''}` }, row.week));
     });
     svg.append(svgEl('line', { x1: left, x2: W, y1: y(goal), y2: y(goal), class: 'goal-line' }));
-    svg.append(label({ x: W, y: y(goal) - 5, 'text-anchor': 'end', class: 'axis strong-tick' }, `${goal} min goal`));
+    svg.append(svgLabel({ x: W, y: y(goal) - 5, 'text-anchor': 'end', class: 'axis strong-tick' }, `${goal} min goal`));
     rows.forEach((row, i) => {
       const hit = svgEl('rect', { x: left + band * i, y: 0, width: band, height: H, fill: 'transparent' });
       const show = e => {
@@ -103,16 +67,16 @@ export function fluencyChart({ points }) {
     const svg = svgEl('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Words spoken over time' });
     for (let v = lo; v <= hi; v += step) {
       svg.append(svgEl('line', { x1: left, x2: W - right, y1: y(v), y2: y(v), class: 'grid' }));
-      svg.append(label({ x: left - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'axis' }, v));
+      svg.append(svgLabel({ x: left - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'axis' }, v));
     }
     const cross = svgEl('line', { y1: top - 6, y2: baseline, class: 'crosshair', visibility: 'hidden' });
     svg.append(cross);
     svg.append(svgEl('path', { d: points.map((p, i) => `${i ? 'L' : 'M'}${x(p)},${y(p.words)}`).join(''), class: 'line-fluency' }));
     points.forEach(p => svg.append(svgEl('circle', { cx: x(p), cy: y(p.words), r: 4, class: 'dot-fluency' })));
     const end = points[points.length - 1];
-    svg.append(label({ x: Math.min(x(end), W - right), y: y(end.words) - 10, 'text-anchor': points.length > 1 ? 'end' : 'middle', class: 'axis strong-tick' }, `${end.words} words`));
-    svg.append(label({ x: span ? left : x(points[0]), y: H - 7, 'text-anchor': span ? 'start' : 'middle', class: 'axis' }, shortDate(first)));
-    if (span) svg.append(label({ x: W - right, y: H - 7, 'text-anchor': 'end', class: 'axis' }, shortDate(end.date)));
+    svg.append(svgLabel({ x: Math.min(x(end), W - right), y: y(end.words) - 10, 'text-anchor': points.length > 1 ? 'end' : 'middle', class: 'axis strong-tick' }, `${end.words} words`));
+    svg.append(svgLabel({ x: span ? left : x(points[0]), y: H - 7, 'text-anchor': span ? 'start' : 'middle', class: 'axis' }, shortDate(first)));
+    if (span) svg.append(svgLabel({ x: W - right, y: H - 7, 'text-anchor': 'end', class: 'axis' }, shortDate(end.date)));
     box.append(svg);
     const tip = tooltip(box);
     const show = e => {

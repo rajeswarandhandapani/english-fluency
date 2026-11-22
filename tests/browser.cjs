@@ -22,8 +22,10 @@ async function noOverflow(page, label) {
 
 (async () => {
   const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-  for (const f of fs.readdirSync(path.join(__dirname, '..', 'js'))) {
-    assert.ok(sw.includes(`./js/${f}`), `${f} missing from sw.js`);
+  for (const dir of ['js', 'lib']) {
+    for (const f of fs.readdirSync(path.join(__dirname, '..', dir))) {
+      assert.ok(sw.includes(`./${dir}/${f}`), `${dir}/${f} missing from sw.js`);
+    }
   }
 
   fs.mkdirSync(OUT, { recursive: true });
@@ -219,7 +221,7 @@ async function noOverflow(page, label) {
 
   // 14. Service Worker offline reload + Dark Mode + Manifest icon verification
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('english-fluency-v1'));
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('english-fluency-v2'));
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 22' }).waitFor();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);

@@ -1,18 +1,30 @@
-// Small local web server for trying the app. Usage: npm start
+// Small local static server for this PWA. Usage: npm start
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const PORT = Number(process.env.PORT) || 4176;
+
+function loadConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(ROOT, 'pwa-kit.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+const cfg = loadConfig();
+const PORT = Number(process.env.PORT) || Number(cfg.port) || 4177;
+const TITLE = cfg.name || path.basename(ROOT);
 const TYPES = {
   '.html': 'text/html',
   '.js': 'text/javascript',
   '.css': 'text/css',
   '.png': 'image/png',
+  '.svg': 'image/svg+xml',
   '.webmanifest': 'application/manifest+json',
 };
-const PUBLIC = /^\/(index\.html|styles\.css|manifest\.webmanifest|sw\.js|js\/[\w-]+\.js|icons\/[\w-]+\.png)$/;
+const PUBLIC = /^\/(index\.html|styles\.css|manifest\.webmanifest|sw\.js|lib\/[\w-]+\.(js|css)|js\/[\w-]+\.js|icons\/[\w-]+\.png)$/;
 
 function start(port = PORT) {
   const server = http.createServer((req, res) => {
@@ -39,5 +51,5 @@ function start(port = PORT) {
   return new Promise(resolve => server.listen(port, '127.0.0.1', () => resolve(server)));
 }
 
-if (require.main === module) start().then(() => console.log(`English Fluency: http://localhost:${PORT}`));
+if (require.main === module) start().then(() => console.log(`${TITLE}: http://localhost:${PORT}`));
 module.exports = { start };

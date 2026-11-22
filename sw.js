@@ -1,19 +1,27 @@
 // Caches app files for offline use so daily practice works anywhere.
 // Logs, transcripts, and audio live only in IndexedDB.
-const CACHE = 'english-fluency-v1';
+const CACHE = 'english-fluency-v2';
+// PWA-KIT:FILES-START
 const FILES = [
   './',
   './index.html',
   './styles.css',
   './manifest.webmanifest',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/favicon-32.png',
-  './js/app.js',
+  './lib/base.css',
+  './lib/chart-kit.js',
+  './lib/dates.js',
+  './lib/ics.js',
+  './lib/idb.js',
+  './lib/timer.js',
+  './lib/ui.js',
   './js/analyzer.js',
+  './js/app.js',
   './js/charts.js',
   './js/lessons-p1.js',
   './js/lessons-p2.js',
@@ -22,9 +30,8 @@ const FILES = [
   './js/plan.js',
   './js/speech.js',
   './js/store.js',
-  './js/timer.js',
-  './js/ui.js',
 ];
+// PWA-KIT:FILES-END
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

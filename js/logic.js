@@ -2,21 +2,14 @@
 // No DOM access here so all of it can be unit tested directly.
 
 import { ALL_LESSONS, CHALLENGE_TIMERS, CONFIDENCE_LEVELS, DAILY_GOAL_OPTIONS, TOTAL_DAYS, WEEKS, WEEKLY_GOAL_MIN, lessonForDay } from './plan.js';
+import { toIso, fromIso, localToday, addDays, weekdayOf, mondayOf, daysBetween, weekDates } from '../lib/dates.js';
+import { reminderDue as kitReminderDue, makeCalendar as kitMakeCalendar } from '../lib/ics.js';
+
+export { toIso, fromIso, localToday, addDays, weekdayOf, mondayOf, daysBetween, weekDates };
 
 export const STEPS = ['listen', 'shadow', 'story', 'speak', 'review'];
 export const REVIEW_STEPS = ['recap', 'story', 'impromptu', 'reflect'];
 export const STEP_IDS = [...new Set([...STEPS, ...REVIEW_STEPS])];
-
-const pad = n => String(n).padStart(2, '0');
-export const toIso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-// Noon keeps date arithmetic clear of daylight-saving transitions.
-export const fromIso = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12); };
-export const localToday = () => toIso(new Date());
-export const addDays = (iso, n) => { const d = fromIso(iso); d.setDate(d.getDate() + n); return toIso(d); };
-export const weekdayOf = iso => fromIso(iso).getDay();
-export const mondayOf = iso => addDays(iso, -((weekdayOf(iso) + 6) % 7));
-export const daysBetween = (a, b) => Math.round((fromIso(b) - fromIso(a)) / 86400000);
-export const weekDates = startIso => Array.from({ length: 7 }, (_, i) => addDays(startIso, i));
 
 /** 1-based day number from the user's plan start date (<= 0 before start). */
 export const dayNumberFor = (iso, startDate) => (startDate ? daysBetween(startDate, iso) + 1 : 1);
@@ -276,51 +269,28 @@ export function reminderFor(date, startDate) {
 }
 
 export function reminderDue({ reminder, date, nowTime, day, lastSent }) {
-  if (!reminder?.enabled || lastSent === date) return false;
-  const days = Array.isArray(reminder.days) ? reminder.days : DEFAULT_REMINDER.days;
-  if (!days.includes(weekdayOf(date))) return false;
-  if (!TIME.test(reminder.time ?? '') || !TIME.test(nowTime ?? '') || nowTime < reminder.time) return false;
-  if (!isEmptyDay(day)) return false;
-  return true;
+  return kitReminderDue({
+    reminder,
+    date,
+    nowTime,
+    isDone: !isEmptyDay(day),
+    lastSent,
+  });
 }
 
 export function makeCalendar({ startDate, reminder = DEFAULT_REMINDER, today }) {
   const base = ISO.test(startDate ?? '') ? startDate : today;
-  const time = TIME.test(reminder?.time ?? '') ? reminder.time : DEFAULT_REMINDER.time;
-  const [hh, mm] = time.split(':');
-  const days = Array.isArray(reminder?.days) ? reminder.days : DEFAULT_REMINDER.days;
-  const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-  const baseWeekday = weekdayOf(base);
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//English Fluency//EN',
-    'CALSCALE:GREGORIAN',
-  ];
-  for (const d of days) {
-    if (!Number.isInteger(d) || d < 0 || d > 6) continue;
-    const offset = (d - baseWeekday + 7) % 7;
-    const firstIso = addDays(base, offset);
-    const firstDate = firstIso.replaceAll('-', '');
-    const info = reminderFor(firstIso, base);
-    lines.push(
-      'BEGIN:VEVENT',
-      `UID:english-fluency-${d}@local`,
-      `DTSTART:${firstDate}T${hh}${mm}00`,
-      'DURATION:PT25M',
-      `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[d]};COUNT=${WEEKS}`,
-      `SUMMARY:${info.title}`,
-      `DESCRIPTION:${info.body}`,
-      'BEGIN:VALARM',
-      'TRIGGER:PT0M',
-      'ACTION:DISPLAY',
-      `DESCRIPTION:${info.title}`,
-      'END:VALARM',
-      'END:VEVENT',
-    );
-  }
-  lines.push('END:VCALENDAR');
-  return lines.join('\r\n');
+  return kitMakeCalendar({
+    prodId: '-//English Fluency//EN',
+    uidPrefix: 'english-fluency',
+    startDate: base,
+    today,
+    time: reminder?.time,
+    durationMin: 25,
+    days: Array.isArray(reminder?.days) ? reminder.days : DEFAULT_REMINDER.days,
+    weeks: WEEKS,
+    eventFor: firstIso => reminderFor(firstIso, base),
+  });
 }
 
 /* ---------- Backup Sanitization ---------- */

@@ -31,12 +31,11 @@ Plain HTML, CSS and JavaScript modules, with no framework, build step or third-p
 | `js/logic.js` | Dates, weekly totals, dictation LCS diff, streaks, calendar & backups |
 | `js/analyzer.js` | Offline transcript analyzer for L1 habits, pace, and AI coach prompt builder |
 | `js/speech.js` | Browser speech synthesis, dialogue role-play, local mic recording, live captions |
-| `js/timer.js` | Speaking & challenge countdown timer |
 | `js/charts.js` | Weekly minutes and fluency trend SVG charts |
 | `js/store.js` | IndexedDB storage for days, settings, and local audio recordings |
-| `js/ui.js` | Shared page helpers |
 | `js/app.js` | Screens |
-| `sw.js` | Offline support. List any new file in `FILES` |
+| `lib/` | Vendored shared primitives from [pwa-kit](../pwa-kit) (`base.css`, `ui.js`, `dates.js`, `idb.js`, `chart-kit.js`, `timer.js`, `ics.js`) |
+| `sw.js` | Offline support. Run `npm run sw` to refresh `FILES` |
 
 ## Tests
 
@@ -60,7 +59,7 @@ For standalone GitHub Pages, push this repo to GitHub and enable **Settings → 
 
 Like `kid-Learning-games` (`games/`), `money-manager`, and `workout-tracker`, classic GitHub Pages does not support Git submodules, so files are mirrored into `rajeswarandhandapani.github.io` using `git subtree`.
 
-**Before pushing changes**, ensure any new JS/icon files are listed in `sw.js` (`FILES`) and bump `CACHE` if cached assets changed (`npm run test:browser` checks `sw.js` coverage).
+**Before pushing changes**, run `npm run sw` to refresh `FILES` in `sw.js` and bump `CACHE` if cached assets changed (`npm run test:browser` checks `sw.js` coverage).
 
 **One-time setup** (after creating and pushing `english-fluency` to `main`):
 
