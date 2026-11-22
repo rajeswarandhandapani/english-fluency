@@ -2,14 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ALL_LESSONS, CLARITY_DRILLS, PHASES, TAMIL_US_SWAPS, TOTAL_DAYS, WEEKS, lessonForDay, phaseOf, youglishUrl,
-} from '../js/plan.js';
+} from '../src/app/core/data/plan.ts';
 import {
   STEPS, REVIEW_STEPS, addDays, compareDictation, dayKindFor, dayNumberFor, daysBetween,
   fluencyHistory, makeBackup, makeCalendar, parseBackup, planDayFor, planWeekDates,
   programRows, programTotals, programWeek, reminderDue, reminderFor, statusOf,
   stepsDone, streaks, weekSummary,
-} from '../js/logic.js';
-import { analyzeTranscript, buildAiCoachPrompt, matchesTargetPhrase } from '../js/analyzer.js';
+} from '../src/app/core/logic/logic.ts';
+import { analyzeTranscript, buildAiCoachPrompt, matchesTargetPhrase } from '../src/app/core/logic/analyzer.ts';
 
 describe('curriculum integrity (12 weeks / 84 days)', () => {
   it('has 72 unique practice lessons across 3 phases and 12 weekly review days', () => {

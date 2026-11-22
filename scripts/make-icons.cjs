@@ -38,7 +38,8 @@ const ICONS = [
 ];
 
 (async () => {
-  fs.mkdirSync(path.join(__dirname, '..', 'icons'), { recursive: true });
+  const outDir = path.join(__dirname, '..', 'public', 'icons');
+  fs.mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch()
     .catch(() => chromium.launch({ channel: 'chrome' }))
     .catch(() => chromium.launch({ channel: 'msedge' }));
@@ -46,7 +47,7 @@ const ICONS = [
     const p = await browser.newPage({ viewport: { width: icon.size, height: icon.size } });
     await p.setContent(svg(icon.size, icon));
     await p.screenshot({
-      path: path.join(__dirname, '..', 'icons', `${icon.name}.png`),
+      path: path.join(outDir, `${icon.name}.png`),
       omitBackground: icon.rounded,
     });
     await p.close();

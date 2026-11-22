@@ -1,5 +1,17 @@
+# Compiled output
+/dist
+/tmp
+/out-tsc
+/.angular/cache
+
+# Node & test output
 node_modules/
 test-output/
+npm-debug.log
 
 # Never commit personal fluency backups
 english-fluency-*.json
+
+# System & IDEs
+.DS_Store
+Thumbs.db

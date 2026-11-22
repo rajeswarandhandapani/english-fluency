@@ -1,81 +1,40 @@
-# English Fluency
+# English Fluency (Angular + Tailwind CSS + DaisyUI)
 
-A private daily 25-minute American English speaking and listening coach for a 12-week fluency plan: six practice days and one weekly story review each week. It runs entirely in the browser with no server or account, and works offline once opened. Practice logs, transcripts, and voice recordings stay on the device.
+A private daily 25-minute American English speaking and listening coach for a 12-week fluency plan: six practice days and one weekly story review each week. It runs entirely in the browser with no server or account, works offline via `@angular/service-worker`, and keeps all logs, transcripts, and voice recordings strictly in IndexedDB.
 
-## Run it
+*(The original zero-build vanilla JS + `pwa-kit` v1.0.0 checkpoint is preserved on branch `main` at tag `v1-vanilla`.)*
 
-```bash
-npm start
-```
-
-Then open http://localhost:4176. Node is the only requirement.
-
-## Daily routine (~25 min)
-
-1. **Listen & Decode (~5 min):** Blind micro-dictation of fast American speech reductions plus YouGlish links.
-2. **Phrase Upgrade & Shadowing (~6 min):** One US workplace phrase and one casual everyday expression, plus a daily Tamil-to-US phrasing swap and 60-second clarity drill.
-3. **Story Flow & Dialogue (~5 min):** Two connected mini-stories and a 6-turn dialogue with Role-Play mode.
-4. **Speak & Record (~7 min):** Structured BLUF, PREP, or Story challenge with a speaking timer, local voice recorder, and optional browser live captions.
-5. **Habit Check & Wrap-up (~3 min):** Offline transcript analysis for common L1 habits, target phrase detection, AI coach prompt export, and daily confidence rating.
-
-## How it is built
-
-Plain HTML, CSS and JavaScript modules, with no framework, build step or third-party runtime code.
-
-| File | Purpose |
-| --- | --- |
-| `js/plan.js` | 12-week schedule, Tamil-to-US swaps, clarity drills, speaking frameworks |
-| `js/lessons-p1.js` | Phase 1 lessons (Weeks 1–4: Ear & Habit Reset) |
-| `js/lessons-p2.js` | Phase 2 lessons (Weeks 5–8: Work Presence & Casual Flow) |
-| `js/lessons-p3.js` | Phase 3 lessons (Weeks 9–12: Executive Clarity & Spontaneous Fluency) |
-| `js/logic.js` | Dates, weekly totals, dictation LCS diff, streaks, calendar & backups |
-| `js/analyzer.js` | Offline transcript analyzer for L1 habits, pace, and AI coach prompt builder |
-| `js/speech.js` | Browser speech synthesis, dialogue role-play, local mic recording, live captions |
-| `js/charts.js` | Weekly minutes and fluency trend SVG charts |
-| `js/store.js` | IndexedDB storage for days, settings, and local audio recordings |
-| `js/app.js` | Screens |
-| `lib/` | Vendored shared primitives from [pwa-kit](../pwa-kit) (`base.css`, `ui.js`, `dates.js`, `idb.js`, `chart-kit.js`, `timer.js`, `ics.js`) |
-| `sw.js` | Offline support. Run `npm run sw` to refresh `FILES` |
-
-## Tests
-
-```bash
-npm test
-```
-
-```bash
-npm run test:browser
-```
-
-`.gitignore` blocks backup files (`english-fluency-*.json`) so personal transcripts can't be committed by accident.
-
-## Hosting & Deploying to GitHub Pages
-
-Any static host works. All paths are relative, so it works unmodified in a subfolder of GitHub Pages. The page's Content Security Policy only allows requests to its own site (`media-src` includes `blob:` for local voice playback).
-
-For standalone GitHub Pages, push this repo to GitHub and enable **Settings → Pages → Deploy from branch `main` (root folder)**.
-
-### Deploying to `rajeswarandhandapani.com/english-fluency/` with `git subtree`
-
-Like `kid-Learning-games` (`games/`), `money-manager`, and `workout-tracker`, classic GitHub Pages does not support Git submodules, so files are mirrored into `rajeswarandhandapani.github.io` using `git subtree`.
-
-**Before pushing changes**, run `npm run sw` to refresh `FILES` in `sw.js` and bump `CACHE` if cached assets changed (`npm run test:browser` checks `sw.js` coverage).
-
-**One-time setup** (after creating and pushing `english-fluency` to `main`):
+## Run locally
 
 ```powershell
-cd c:\prorajes\repos\rajeswarandhandapani.github.io
-git subtree add --prefix=english-fluency git@github.com:rajeswarandhandapani/english-fluency.git main --squash -m "Add english-fluency ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))"
-git push origin master
+npm.cmd install
+npm.cmd start
 ```
 
-**Syncing future updates** (after pushing new commits to `english-fluency`):
+Open `http://localhost:4176`.
+
+## Build & Test
 
 ```powershell
-cd c:\prorajes\repos\rajeswarandhandapani.github.io
-git subtree pull --prefix=english-fluency git@github.com:rajeswarandhandapani/english-fluency.git main --squash -m "Sync english-fluency ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))"
-git push origin master
+# Domain unit tests (72 lessons, LCS diff, L1 habit analyzer, .ics, backups)
+npm.cmd test
+
+# Production build (GitHub Pages subfolder base-href + service worker)
+npm.cmd run build:pages
+
+# Local production build (relative base-href) & full Playwright E2E + offline test
+npm.cmd run build
+npm.cmd run test:browser
 ```
 
-`--squash` keeps `english-fluency`'s full commit history out of the website repo's log—only one squashed commit lands per sync. Passing `-m` avoids opening Vim (in Git Bash, macOS, or Linux, swap `$(Get-Date -Format 'yyyy-MM-dd HH:mm')` with `$(date '+%Y-%m-%d %H:%M')`).
+## Architecture
 
+- Built with standalone, zoneless Angular (Signals, `@if`/`@for`, hash routing), **Tailwind CSS v4 + DaisyUI v5** (system-aware Nord light / Dim dark + user-selectable presets), and shared kit primitives synced from [`angular-pwa-kit`](../angular-pwa-kit) (`src/app/kit/`).
+- Preserves strict Content Security Policy (zero external network requests; `media-src 'self' blob:`) and IndexedDB compatibility (`'english-fluency'` v1: `days`, `recordings`, `kv`).
+
+## Deploying to `rajeswarandhandapani.com/english-fluency/` (Path A)
+
+Once `angular` is merged to `main` and GitHub Pages is set to **Settings → Pages → Source: GitHub Actions** in `rajeswarandhandapani/english-fluency`:
+
+- Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+- It runs unit tests, builds with `--base-href /english-fluency/`, and deploys directly via `actions/deploy-pages` using the built-in `GITHUB_TOKEN` (no deploy keys or commits to `rajeswarandhandapani.github.io`).

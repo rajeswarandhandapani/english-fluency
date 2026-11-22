@@ -1,9 +1,9 @@
-// End-to-end Playwright browser test with made-up practice logs. Usage: npm run test:browser
+// End-to-end Playwright browser test against production Angular dist/ output. Usage: npm run test:browser
 const { chromium } = require('playwright');
 const assert = require('assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { start } = require('../scripts/serve.cjs');
+const { DIST_ROOT, start } = require('../scripts/serve-dist.cjs');
 
 const PORT = 4184;
 const URL = `http://localhost:${PORT}/`;
@@ -13,7 +13,11 @@ const SUNDAY_DAY7 = new Date('2026-11-22T09:00:00');
 
 const nav = (page, name) => page.locator('nav button', { hasText: name }).click();
 const testId = (page, id) => page.locator(`[data-testid="${id}"]`);
-const toastText = page => page.locator('#toast');
+
+async function waitText(loc, expected) {
+  await loc.filter({ hasText: expected }).waitFor();
+  assert.equal((await loc.textContent()).trim(), expected);
+}
 
 async function noOverflow(page, label) {
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -21,12 +25,9 @@ async function noOverflow(page, label) {
 }
 
 (async () => {
-  const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-  for (const dir of ['js', 'lib']) {
-    for (const f of fs.readdirSync(path.join(__dirname, '..', dir))) {
-      assert.ok(sw.includes(`./${dir}/${f}`), `${dir}/${f} missing from sw.js`);
-    }
-  }
+  assert.ok(fs.existsSync(path.join(DIST_ROOT, 'index.html')), 'dist index.html missing — run npm run build first');
+  assert.ok(fs.existsSync(path.join(DIST_ROOT, 'ngsw-worker.js')), 'ngsw-worker.js missing from dist');
+  assert.ok(fs.existsSync(path.join(DIST_ROOT, 'ngsw.json')), 'ngsw.json missing from dist');
 
   fs.mkdirSync(OUT, { recursive: true });
   const server = await start(PORT);
@@ -62,18 +63,18 @@ async function noOverflow(page, label) {
   // 2. Day 1 loads cleanly with 5 steps
   await page.getByRole('heading', { name: 'Today, Nov 16' }).waitFor();
   assert.ok(await page.getByText('Day 1 of 84 · Week 1: Ear & Habit Reset').isVisible());
-  assert.equal(await testId(page, 'step-count').textContent(), '0 of 5 steps');
+  await waitText(testId(page, 'step-count'), '0 of 5 steps');
   assert.ok(await page.getByRole('button', { name: 'Next day' }).isDisabled(), 'future days cannot be logged');
   await noOverflow(page, 'Today initial');
 
   // 3. Step 1: Dictation check + YouGlish external links
   await page.getByRole('textbox', { name: 'Type what you hear clip 1' }).fill('Did you get a chance to check out that bug yet?');
   await testId(page, 'check-clip-0').click();
-  assert.ok(await testId(page, 'diff-clip-0').getByText('Match: 100%').isVisible());
+  await testId(page, 'diff-clip-0').getByText('Match: 100%').waitFor();
 
   await page.getByRole('textbox', { name: 'Type what you hear clip 2' }).fill('What are we gonna do tonight?');
   await testId(page, 'check-clip-1').click();
-  assert.equal(await testId(page, 'step-count').textContent(), '1 of 5 steps');
+  await waitText(testId(page, 'step-count'), '1 of 5 steps');
 
   const ygLink = page.getByRole('link', { name: /Hear "sanity check"/ });
   assert.equal(await ygLink.getAttribute('target'), '_blank');
@@ -86,7 +87,7 @@ async function noOverflow(page, label) {
   await rep0.click();
   await rep0.click();
   await rep0.click();
-  assert.equal(await rep0.textContent(), '3/3');
+  await waitText(rep0, '3/3');
   assert.ok(await rep0.evaluate(e => e.classList.contains('hit')));
   assert.ok(await page.getByText('Daily Swap · Work').isVisible());
   assert.ok(await page.getByText('60-Second Clarity Drill').isVisible());
@@ -96,10 +97,10 @@ async function noOverflow(page, label) {
   await page.locator('[data-step="story"] summary').click();
   assert.ok(await page.locator('mark.conn').count() >= 3);
   await testId(page, 'roleplay-toggle').click();
-  assert.equal(await testId(page, 'roleplay-toggle').getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction(() => document.querySelector('[data-testid="roleplay-toggle"]')?.getAttribute('aria-pressed') === 'true');
   await page.getByRole('button', { name: '▶ Play Dialogue' }).click();
   await page.clock.runFor(600);
-  await page.getByText('Your turn — speak your line aloud').waitFor();
+  await page.getByText('Your turn — speak your line aloud, then tap Next.').waitFor();
   await page.getByRole('button', { name: 'Next line →' }).click();
   await page.getByRole('button', { name: '⏹ Stop' }).click();
   await testId(page, 'done-story').click();
@@ -108,48 +109,48 @@ async function noOverflow(page, label) {
   await page.locator('[data-step="speak"] summary').click();
   await testId(page, 'start-speaking-timer').click();
   await page.locator('#timer-bar').waitFor();
-  assert.equal(await page.locator('#timer-time').textContent(), '2:00');
+  await waitText(page.locator('#timer-time'), '2:00');
   await page.getByRole('button', { name: '30 seconds more' }).click();
-  assert.equal(await page.locator('#timer-time').textContent(), '2:30');
+  await waitText(page.locator('#timer-time'), '2:30');
   await page.getByRole('button', { name: 'Stop', exact: true }).click();
   await page.locator('#timer-bar').waitFor({ state: 'hidden' });
 
   const sampleTranscript = 'Yesterday only I was having a doubt, so do one thing, let us figure it out and do a sanity check. <img src=x onerror="window.__xss=1">';
   await page.getByRole('textbox', { name: 'Spoken transcript or key points' }).fill(sampleTranscript);
-  assert.equal(await testId(page, 'transcript-status').textContent(), 'Saved');
-  assert.equal(await page.locator('[data-target-chip="sanity check"]').textContent(), '✓ Used: sanity check');
-  assert.equal(await page.locator('[data-target-chip="figure out"]').textContent(), '✓ Used: figure out');
+  await waitText(testId(page, 'transcript-status'), 'Saved');
+  await waitText(page.locator('[data-target-chip="sanity check"]'), '✓ Used: sanity check');
+  await waitText(page.locator('[data-target-chip="figure out"]'), '✓ Used: figure out');
   await testId(page, 'done-speak').click();
 
   // 7. Step 5: Offline habit analyzer, confidence, win, finish day
   await page.locator('[data-step="review"] summary').click();
   const analyzerBox = testId(page, 'analyzer-output');
-  assert.ok(await analyzerBox.getByText(/Emphasis "only" transfer/).isVisible());
+  await analyzerBox.getByText(/Emphasis "only" transfer/).waitFor();
   assert.ok(await analyzerBox.getByText(/"Have a doubt" phrasing/).isVisible());
   assert.ok(await analyzerBox.getByText(/"Do one thing" command/).isVisible());
 
   await page.locator('[data-confidence="steady"]').click();
-  assert.equal(await page.locator('[data-confidence="steady"]').getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction(() => document.querySelector('[data-confidence="steady"]')?.getAttribute('aria-pressed') === 'true');
   await page.getByRole('textbox', { name: 'Win of the day' }).fill('Used BLUF cleanly in standup');
   await testId(page, 'finish-day').click();
-  assert.equal(await testId(page, 'step-count').textContent(), '5 of 5 steps');
-  assert.equal(await testId(page, 'week-minutes').textContent(), '25 of 150 min');
+  await waitText(testId(page, 'step-count'), '5 of 5 steps');
+  await waitText(testId(page, 'week-minutes'), '25 of 150 min');
   await page.screenshot({ path: path.join(OUT, 'today.png'), fullPage: true });
 
   // 8. Reload persistence & XSS check
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 16' }).waitFor();
-  assert.equal(await testId(page, 'step-count').textContent(), '5 of 5 steps');
+  await waitText(testId(page, 'step-count'), '5 of 5 steps');
   assert.equal(await page.evaluate(() => window.__xss), undefined);
   await page.locator('[data-step="speak"] summary').click();
   assert.equal(await page.getByRole('textbox', { name: 'Spoken transcript or key points' }).inputValue(), sampleTranscript);
 
   // 9. Progress view
   await nav(page, 'Progress');
-  assert.equal(await testId(page, 'total-sessions').textContent(), '1 of 84');
-  assert.equal(await testId(page, 'total-minutes').textContent(), '25');
-  assert.equal(await testId(page, 'current-streak').textContent(), '1 day');
-  assert.equal(await testId(page, 'phrases-practiced').textContent(), '2 of 144');
+  await waitText(testId(page, 'total-sessions'), '1 of 84');
+  await waitText(testId(page, 'total-minutes'), '25');
+  await waitText(testId(page, 'current-streak'), '1 day');
+  await waitText(testId(page, 'phrases-practiced'), '2 of 144');
   assert.equal(await page.locator('.calendar .cell').count(), 84);
   assert.equal(await page.locator('.calendar [data-date="2026-11-16"]').getAttribute('data-s'), 'full');
   await page.locator('.bar-min').first().waitFor();
@@ -161,18 +162,23 @@ async function noOverflow(page, label) {
   // 10. Reference view
   await nav(page, 'Reference');
   await page.getByRole('heading', { name: 'Reference' }).waitFor();
-  assert.equal(await page.locator('[data-swap]').count(), 25);
+  await page.waitForFunction(() => document.querySelectorAll('[data-swap]').length === 25);
   await page.getByRole('searchbox', { name: 'Search upgrades, idioms, or drills' }).fill('prepone');
-  assert.equal(await page.locator('[data-swap]').count(), 1);
+  await page.waitForFunction(() => document.querySelectorAll('[data-swap]').length === 1);
   await page.getByRole('searchbox', { name: 'Search upgrades, idioms, or drills' }).fill('');
-  assert.equal(await page.locator('[data-swap]').count(), 25);
+  await page.waitForFunction(() => document.querySelectorAll('[data-swap]').length === 25);
   assert.ok(await page.getByText('4 Physical Clarity Drills').isVisible());
   assert.ok(await page.getByText('12-Week Curriculum Index').isVisible());
   await noOverflow(page, 'Reference');
 
-  // 11. Data view: settings, reminder, .ics, backup, erase, bad file rejection, restore
+  // 11. Data view: theme switcher, settings, reminder, .ics, backup, erase, bad file rejection, restore
   await nav(page, 'Data');
   await noOverflow(page, 'Data');
+  await page.getByRole('combobox', { name: 'Theme' }).selectOption('corporate');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'corporate');
+  await page.getByRole('combobox', { name: 'Theme' }).selectOption('system');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), null);
+
   assert.equal(await page.getByLabel('Reminder time').inputValue(), '19:00');
   await page.getByRole('checkbox', { name: 'Daily practice reminder' }).check();
   await page.getByLabel('Reminder time').fill('18:30');
@@ -204,7 +210,7 @@ async function noOverflow(page, label) {
   await page.locator('input[type=file]').setInputFiles(backupPath);
   await page.locator('dialog').getByRole('button', { name: 'Replace' }).click();
   await page.getByRole('heading', { name: 'Today, Nov 16' }).waitFor();
-  assert.equal(await testId(page, 'step-count').textContent(), '5 of 5 steps');
+  await waitText(testId(page, 'step-count'), '5 of 5 steps');
   assert.equal(await page.evaluate(() => window.__xss), undefined);
 
   // 12. Day 7 Weekly Story Review screen verification (advance clock to Sunday Nov 22)
@@ -219,9 +225,8 @@ async function noOverflow(page, label) {
   await noOverflow(page, 'Today at 320px');
   await page.setViewportSize({ width: 390, height: 844 });
 
-  // 14. Service Worker offline reload + Dark Mode + Manifest icon verification
+  // 14. Angular Service Worker offline reload + Dark Mode + Manifest icon verification
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('english-fluency-v2'));
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 22' }).waitFor();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -232,9 +237,10 @@ async function noOverflow(page, label) {
 
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.screenshot({ path: path.join(OUT, 'today-dark.png'), fullPage: true });
-  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(DIST_ROOT, 'manifest.webmanifest'), 'utf8'));
   for (const icon of manifest.icons) {
-    assert.ok(fs.existsSync(path.join(__dirname, '..', icon.src)), `${icon.src} is missing`);
+    assert.ok(fs.existsSync(path.join(DIST_ROOT, icon.src)), `${icon.src} is missing from dist`);
   }
 
   assert.deepEqual(errors, [], 'page errors');
