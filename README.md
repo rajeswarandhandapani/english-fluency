@@ -32,9 +32,7 @@ npm.cmd run test:browser
 - Built with standalone, zoneless Angular (Signals, `@if`/`@for`, hash routing), **Tailwind CSS v4 + DaisyUI v5** (system-aware Nord light / Dim dark + user-selectable presets), and shared kit primitives synced from [`angular-pwa-kit`](../angular-pwa-kit) (`src/app/kit/`).
 - Preserves strict Content Security Policy (zero external network requests; `media-src 'self' blob:`) and IndexedDB compatibility (`'english-fluency'` v1: `days`, `recordings`, `kv`).
 
-## Deploying to `rajeswarandhandapani.com/english-fluency/` (Path A)
+## Live App & Deployment
 
-Once `angular` is merged to `main` and GitHub Pages is set to **Settings → Pages → Source: GitHub Actions** in `rajeswarandhandapani/english-fluency`:
-
-- Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
-- It runs unit tests, builds with `--base-href /english-fluency/`, and deploys directly via `actions/deploy-pages` using the built-in `GITHUB_TOKEN` (no deploy keys or commits to `rajeswarandhandapani.github.io`).
+- **URL:** `https://rajeswarandhandapani.com/english-fluency/`
+- Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which runs `npm ci`, runs `npm test`, builds with `--base-href /english-fluency/`, and deploys directly via `actions/deploy-pages` (GitHub Pages **Source: GitHub Actions**, custom domain blank so it inherits `rajeswarandhandapani.com`).
